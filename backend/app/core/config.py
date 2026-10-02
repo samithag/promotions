@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     request_timeout_seconds: float = 30.0
     # Pause between requests to the same site, to stay polite.
     request_delay_seconds: float = 1.0
+    # Base wait before retrying a failed scrape (doubles each retry).
+    retry_wait_seconds: float = 10.0
     raw_dir: Path = Path("data/raw")
     raw_keep_per_bank: int = 24
 
