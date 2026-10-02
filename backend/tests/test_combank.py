@@ -138,3 +138,13 @@ def test_scraper_fetches_robots_txt_once_per_site() -> None:
 
     assert len(ComBankScraper(_client(handler)).scrape().offers) == 42
     assert robots_requests == ["https://www.combank.lk/robots.txt"]
+
+
+def test_scraper_treats_a_refused_robots_txt_as_blocking_the_site() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            return httpx.Response(403)
+        return httpx.Response(200, text=LISTING)
+
+    with pytest.raises(BlockedError, match="robots.txt answered HTTP 403"):
+        ComBankScraper(_client(handler)).scrape()
