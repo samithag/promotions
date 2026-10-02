@@ -133,12 +133,12 @@ def parse_validity(text: str, today: date) -> tuple[date | None, date | None]:
 
 
 def parse_card_types(text: str) -> list[str]:
-    """Lists the cards an offer applies to, e.g. ["Visa Credit", "Mastercard Credit"]."""
-    brands = [name for name, pattern in _BRANDS.items() if pattern.search(text)]
-    kinds = [name for name, pattern in _KINDS.items() if pattern.search(text)]
-    if brands and kinds:
-        return [f"{brand} {kind}" for brand in brands for kind in kinds]
-    return brands or kinds
+    """Lists the card networks, then the card kinds, an offer mentions, e.g.
+    ["Visa", "Mastercard", "Credit", "Debit"]. They are kept as separate tags because
+    free text like "Mastercard, Visa Credit & Debit" doesn't say which pairs apply.
+    """
+    tags = {**_BRANDS, **_KINDS}
+    return [name for name, pattern in tags.items() if pattern.search(text)]
 
 
 def _safe_date(year: int, month: int, day: int) -> date | None:

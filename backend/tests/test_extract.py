@@ -59,10 +59,10 @@ def test_parse_validity(text: str, expected: tuple) -> None:
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
-        ("For all Sampath Visa Credit Cardholders", ["Visa Credit"]),
+        ("For all Sampath Visa Credit Cardholders", ["Visa", "Credit"]),
         (
-            "for Sampath Mastercard and Visa Credit Cardholders",
-            ["Visa Credit", "Mastercard Credit"],
+            "Sampath Mastercard, Visa Credit & Debit Cardholders and American Express Credit",
+            ["Visa", "Mastercard", "American Express", "Credit", "Debit"],
         ),
         ("with ComBank Credit and Debit Cards", ["Credit", "Debit"]),
         ("with ComBank Cards", []),

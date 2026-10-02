@@ -12,8 +12,7 @@ from datetime import date
 import httpx
 from bs4 import BeautifulSoup, Tag
 
-from app.core.config import LOCAL_TZ
-from app.models import utcnow
+from app.core.config import local_today
 from app.scrapers.base import BaseScraper, BlockedError, RawOffer, ScrapeResult
 from app.services.extract import html_to_text, parse_card_types, parse_validity
 
@@ -82,7 +81,7 @@ class ComBankScraper(BaseScraper):
     source_url = LISTING_URL
 
     def scrape(self) -> ScrapeResult:
-        today = utcnow().astimezone(LOCAL_TZ).date()
+        today = local_today()
         response = self.client.get(LISTING_URL)
         response.raise_for_status()
         offers = parse_listing(response.text, today)

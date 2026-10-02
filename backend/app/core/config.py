@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -6,6 +7,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Offer validity dates are Sri Lankan calendar dates.
 LOCAL_TZ = ZoneInfo("Asia/Colombo")
+
+
+def local_today() -> date:
+    """Today's date in Sri Lanka."""
+    return datetime.now(LOCAL_TZ).date()
 
 
 class Settings(BaseSettings):

@@ -2,5 +2,8 @@
 
 from app.scrapers.base import BaseScraper
 from app.scrapers.combank import ComBankScraper
+from app.scrapers.sampath import SampathScraper
 
-SCRAPERS: dict[str, type[BaseScraper]] = {scraper.code: scraper for scraper in [ComBankScraper]}
+SCRAPERS: dict[str, type[BaseScraper]] = {
+    scraper.code: scraper for scraper in [ComBankScraper, SampathScraper]
+}
