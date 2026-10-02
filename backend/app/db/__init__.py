@@ -1,6 +1,7 @@
 from collections.abc import Iterator
 from functools import lru_cache
 
+from fastapi import Request
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
@@ -21,7 +22,12 @@ def get_sessionmaker() -> sessionmaker[Session]:
     return sessionmaker(bind=get_engine(), expire_on_commit=False)
 
 
-def get_session() -> Iterator[Session]:
+def get_session_factory(request: Request) -> sessionmaker[Session]:
+    """FastAPI dependency: the app's session factory (tests swap in their own)."""
+    return request.app.state.session_factory
+
+
+def get_session(request: Request) -> Iterator[Session]:
     """FastAPI dependency: one session per request."""
-    with get_sessionmaker()() as session:
+    with get_session_factory(request)() as session:
         yield session

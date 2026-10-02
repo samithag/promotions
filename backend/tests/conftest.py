@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401  (registers the tables)
-from app.db import Base, get_session
+from app.db import Base
 from app.main import app
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -32,11 +32,7 @@ def session(session_factory: sessionmaker[Session]) -> Iterator[Session]:
 
 @pytest.fixture
 def client(session_factory: sessionmaker[Session]) -> Iterator[TestClient]:
-    def override() -> Iterator[Session]:
-        with session_factory() as session:
-            yield session
-
-    app.dependency_overrides[get_session] = override
+    app.state.session_factory = session_factory
     with TestClient(app) as client:
         yield client
-    app.dependency_overrides.clear()
+    del app.state.session_factory

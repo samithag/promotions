@@ -38,7 +38,7 @@ docker run -p 3000:3000 -e PROMOTIONS_API_URL=http://host.docker.internal:8000 p
 The site reads promotions through a `PromotionsRepository` (`src/lib/promotions/`):
 
 - **Sample data (default):** with no configuration, the site serves built-in sample offers (`mock-data.ts`) and shows a notice saying so. Their dates are relative to today, so there is always a mix of running, upcoming and ended offers.
-- **Live API:** copy `.env.example` to `.env.local` and set `PROMOTIONS_API_URL` to the FastAPI backend. The site then calls the `/api/v1` endpoints from `doc/webscraper_plan.md`. Responses are cached for 5 minutes, since offers are scraped hourly.
+- **Live API:** copy `.env.example` to `.env.local` and set `PROMOTIONS_API_URL` to the FastAPI backend (`backend/`). `docker compose up` sets this automatically. The site then calls the `/api/v1` endpoints from `doc/webscraper_plan.md`. Responses are cached for 5 minutes, since offers are scraped hourly.
 
 The response shapes the site expects are set out under "Frontend contract" in [`doc/webscraper_plan.md`](../doc/webscraper_plan.md#frontend-contract). If `PROMOTIONS_API_URL` has a path prefix (for example `https://host/promotions`), it is kept. If the API returns an error, or a 404 from a list endpoint, the site shows its error page rather than an empty list.
 

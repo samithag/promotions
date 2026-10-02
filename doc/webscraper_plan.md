@@ -16,7 +16,14 @@ Scrape credit card promotions from two leading Sri Lankan banks every hour, sort
 Both pages were checked before planning, because how a page is built decides how hard it is to scrape.
 
 - **ComBank:** the promotions are plain HTML that comes straight from the server, grouped under headings such as "Food & Restaurants". httpx + BeautifulSoup is enough; no browser is needed.
-- **Sampath:** a Nuxt app. The offer data is embedded in the page as a `window.__NUXT__` script, and file links point to `/api/uploads/`, which suggests a content API behind the site. The plan is to find that API or parse the embedded data rather than read the visible page. A headless browser (Playwright) is the fallback if neither works.
+- **Sampath:** a Nuxt app. The offers are not in the page; the browser loads them from a JSON API, `GET https://www.sampath.lk/api/card-promotions?category=<tab>&page_number=<n>&size=<n>`, one category tab at a time. The scraper reads that API directly.
+
+**Found during implementation:** both sites use bot protection.
+
+- **Sampath:** for scripted requests, the API returns the real `total` but an empty `data` list.
+- **ComBank:** couldn't be reached from the development environment at all.
+
+The scraper records these runs as `blocked` and leaves stored offers untouched. It does not try to get around the protection. The parser fixtures were captured through a normal browser session.
 
 ## Architecture
 
@@ -142,10 +149,12 @@ The Next.js frontend (`frontend/`, SCRUM-11) already calls these endpoints, so t
 
 ## Libraries
 
-`fastapi`, `uvicorn`, `sqlalchemy` 2.x, `alembic`, `pydantic-settings`, `httpx`, `beautifulsoup4` + `lxml`, `apscheduler`, `tenacity`, `dateparser`, `pytest`. Optionally `playwright`, only if Sampath turns out to need a browser.
+`fastapi`, `uvicorn`, `sqlalchemy` 2.x, `alembic`, `pydantic-settings`, `psycopg`, `httpx`, `beautifulsoup4` + `lxml`, `apscheduler`, `tenacity`, `pytest`.
 
-## Open decisions
+`dateparser` turned out not to be needed. The banks use a small set of date formats that a regex handles, and Sampath supplies timestamps. Playwright was not added (see the note on bot protection above).
 
-- **Database:** Postgres is suggested, with SQLite as a stand-in for local development.
-- **Debit cards:** should debit-card offers be included, or only credit cards?
-- **Raw pages:** should the raw HTML/JSON from each run be kept, for debugging and re-parsing later?
+## Decisions
+
+- **Database:** Postgres in Docker Compose; SQLite for local development and tests.
+- **Debit cards:** included. `card_types` records the card networks and kinds an offer mentions (for example `["Visa", "Mastercard", "Credit", "Debit"]`), so the UI can filter on them later.
+- **Raw pages:** kept. Each run saves the HTML/JSON it fetched under `data/raw/<bank>/<timestamp>/`, keeping the newest 24 runs per bank. The path is stored in `scrape_runs.raw_path`.
