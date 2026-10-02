@@ -9,21 +9,23 @@ A web application for browsing and managing a list of promotions: offers, discou
 Planned features for the promotion list web app:
 
 - **Promotion list:** browse all current promotions with title, description, discount, and validity dates
-- **Search and filter:** find promotions by keyword, category, or status (active, upcoming, expired)
+- **Search and filter:** find promotions by keyword, bank, category, or status (active, upcoming, expired)
 - **Sorting:** sort by newest, ending soon, or discount value
 - **Promotion details:** view full terms and conditions for a single promotion
-- **Manage promotions:** create, edit, and remove promotions (admin)
+- **Manage promotions:** create, edit, and remove promotions (admin; not built yet)
 - **Responsive design:** works on desktop and mobile browsers
 
 ## Tech Stack
 
-_TBD: frontend framework, backend/API, database, and hosting will be documented here once chosen._
+- **Frontend:** Next.js 16 (App Router, React Server Components), TypeScript, and Tailwind CSS 4, in [`frontend/`](frontend/README.md).
+- **Backend:** FastAPI scraper and API, planned in [`doc/webscraper_plan.md`](doc/webscraper_plan.md).
+
+_TBD: database and hosting._
 
 ## Prerequisites
 
-_TBD: required language and runtime versions, package manager, and any external services._
-
 - Git
+- Node.js 22 or later, with npm (frontend)
 
 ## Getting Started
 
@@ -36,23 +38,37 @@ cd promotions
 
 ### 2. Install dependencies
 
-_TBD: the install command for the chosen stack._
+```bash
+cd frontend
+npm install
+```
 
 ### 3. Configure the environment
 
-_TBD: copy `.env.example` to `.env` and fill in the required values._
+The frontend runs on built-in sample data by default. To use the live API, copy `frontend/.env.example` to `frontend/.env.local` and set `PROMOTIONS_API_URL`.
 
 ### 4. Run the app locally
 
-_TBD: the command to start the development server, and the local URL to open._
+```bash
+cd frontend
+npm run dev
+```
+
+Then open http://localhost:3000.
 
 ## Running Tests
 
-_TBD: the command to run the test suite._
+```bash
+cd frontend
+npm test
+```
 
 ## Project Structure
 
-_TBD: an overview of the main directories, added as the codebase takes shape._
+```
+doc/        # Plans and design notes
+frontend/   # Next.js website (see frontend/README.md)
+```
 
 ## Contributing
 

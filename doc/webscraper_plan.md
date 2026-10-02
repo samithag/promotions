@@ -103,6 +103,27 @@ The first version is rule-based. An LLM classifier can come later if the rules t
 
 These cover the search, filter and sorting features listed in the README.
 
+### Frontend contract
+
+The Next.js frontend (`frontend/`, SCRUM-11) already calls these endpoints, so the API must return the following. The TypeScript version is in `frontend/src/lib/promotions/types.ts`.
+
+- **`GET /api/v1/promotions`**
+  - **Params:** `q`, `bank`, `category`, `status`, `sort`, `page` (1-based), `page_size`. Each one is optional.
+  - **Response:** `{ items: Promotion[], total, page, page_size }`.
+  - **`page_size` up to 50 must be accepted.** The home page asks for 50 offers to count those ending this week.
+- **`GET /api/v1/promotions/{id}`:** one `Promotion`, or 404 if it doesn't exist.
+- **`GET /api/v1/categories?status`:** `[{ slug, label, count }]` for every category, including those with a count of 0.
+- **`bank`:** the bank code (`combank`, `sampath`), not `bank_id`.
+- **`category`:** a lowercase slug of the shared categories (`dining`, `supermarket`, `travel`, `hotels`, `fashion`, `electronics`, `health`, `fuel`, `online`, `other`).
+- **`status`:** derived from the validity dates in Sri Lankan time.
+  - `expired` when `is_active` is false or `valid_to` is past.
+  - `upcoming` when `valid_from` is in the future.
+  - `active` otherwise.
+  - Leaving it out means every status.
+- **`sort=discount`:** percentage offers first, largest first. Then fixed amounts, then installment plans, then offers with no discount.
+- **`discount_type`:** `percentage`, `fixed` or `installment`. `discount_value` is the percent, the rupee amount, or the number of 0% installment months.
+- **Dates:** `valid_from` and `valid_to` are ISO dates (`YYYY-MM-DD`) or null. `first_seen_at` and `last_seen_at` are ISO timestamps.
+
 ## Testing
 
 - **Parser tests:** run each parser against saved HTML/JSON snapshots in `tests/fixtures/`. They run offline and don't break when the live site changes.

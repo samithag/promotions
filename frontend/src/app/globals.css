@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Light theme */
+:root {
+  --bg: #f3f5fa;
+  --surface: #ffffff;
+  --surface-2: #e9edf5;
+  --line: #d5dbe7;
+  --text: #121a2e;
+  --muted: #5a6480;
+  --gold: #8a6416;
+  --focus: #1f5bd8;
+}
+
+/* Dark theme (default) */
+.dark {
+  --bg: #0d1322;
+  --surface: #161f33;
+  --surface-2: #1e2942;
+  --line: #26324d;
+  --text: #e6eaf3;
+  --muted: #8b95ae;
+  --gold: #e6c26e;
+  --focus: #8fb3ff;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-gold: var(--gold);
+  --color-focus: var(--focus);
+  --font-display: var(--font-bricolage);
+  --font-sans: var(--font-figtree);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* ---------- Card faces: each offer is drawn as a payment card ---------- */
+
+.card-face {
+  --ink: #ffffff;
+  position: relative;
+  aspect-ratio: 1.586 / 1; /* ISO/IEC 7810 ID-1, the size of a real card */
+  overflow: hidden;
+  color: var(--ink);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 18px 40px -18px rgb(0 0 0 / 0.55);
+  isolation: isolate;
+}
+
+/* Fine guilloche linework, like the security print on a real card. */
+.card-face::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  z-index: -1;
+  background: repeating-radial-gradient(
+    circle at 85% 15%,
+    rgb(255 255 255 / 0.07) 0 1px,
+    transparent 1px 9px
+  );
+}
+
+.face-combank {
+  background: linear-gradient(135deg, #2a6ae6 0%, #1f5bd8 35%, #0a2d7a 100%);
+}
+
+.face-sampath {
+  background: linear-gradient(135deg, #ff9638 0%, #f47b20 40%, #b8400e 100%);
+}
+
+.face-expired {
+  filter: grayscale(0.9) brightness(0.75);
+}
+
+/* The discount figure, set like embossed foil. */
+.foil {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 75;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
+  background: linear-gradient(180deg, #fff6d8 0%, #f1d48a 45%, #c99a3b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 1px 0 rgb(0 0 0 / 0.25));
+}
+
+.display {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 90;
+  letter-spacing: -0.025em;
+}
+
+/* ---------- Hero card fan: the page's one load animation ---------- */
+
+@keyframes fan-in {
+  from {
+    transform: translate(0, 24px) rotate(0deg);
+    opacity: 0;
+  }
+}
+
+.fan-card {
+  animation: fan-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fan-card {
+    animation: none;
+  }
+}
+
+/* Hide the scrollbar on the category rail; it still scrolls by touch and keys. */
+.rail {
+  scrollbar-width: none;
+}
+.rail::-webkit-scrollbar {
+  display: none;
+}
