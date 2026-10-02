@@ -1,0 +1,6 @@
+{
+  "enabledPlugins": {
+    "feature-dev@anthropic-plugin-directory": true
+  },
+  "enabledMcpjsonServers": ["atlassian", "github"]
+}
