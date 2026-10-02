@@ -16,7 +16,14 @@ Scrape credit card promotions from two leading Sri Lankan banks every hour, sort
 Both pages were checked before planning, because how a page is built decides how hard it is to scrape.
 
 - **ComBank:** the promotions are plain HTML that comes straight from the server, grouped under headings such as "Food & Restaurants". httpx + BeautifulSoup is enough; no browser is needed.
-- **Sampath:** a Nuxt app. The offer data is embedded in the page as a `window.__NUXT__` script, and file links point to `/api/uploads/`, which suggests a content API behind the site. The plan is to find that API or parse the embedded data rather than read the visible page. A headless browser (Playwright) is the fallback if neither works.
+- **Sampath:** a Nuxt app. The offers are not in the page; the browser loads them from a JSON API, `GET https://www.sampath.lk/api/card-promotions?category=<tab>&page_number=<n>&size=<n>`, one category tab at a time. The scraper reads that API directly.
+
+**Found during implementation:** both sites use bot protection.
+
+- **Sampath:** for scripted requests, the API returns the real `total` but an empty `data` list.
+- **ComBank:** couldn't be reached from the development environment at all.
+
+The scraper records these runs as `blocked` and leaves stored offers untouched. It does not try to get around the protection. The parser fixtures were captured through a normal browser session.
 
 ## Architecture
 
@@ -66,10 +73,10 @@ Adding a bank later means one new file under `scrapers/` plus one line in the re
 | Table | Key fields |
 |---|---|
 | `banks` | id, code (`combank`), name, source_url |
-| `promotions` | id, bank_id, external_id / `content_hash`, title, merchant, description, discount_value, discount_type (% / fixed / installment), card_types, category, bank_category (as the bank labels it), valid_from, valid_to, image_url, source_url, first_seen_at, last_seen_at, is_active |
-| `scrape_runs` | id, bank_id, started_at, finished_at, status, offers_found, offers_new, error |
+| `promotions` | id, bank_id, external_id, title, merchant, description, discount_value, discount_type (% / fixed / installment), card_types, category, bank_category (as the bank labels it), valid_from, valid_to, image_url, source_url, first_seen_at, last_seen_at, is_active |
+| `scrape_runs` | id, bank_id, started_at, finished_at, status (running / success / blocked / failed), offers_found, offers_new, offers_closed, error, raw_path |
 
-- **Deduplication:** use the bank's own ID when there is one. Otherwise use a hash of bank + title + merchant + validity dates. Each hourly run inserts new offers and updates `last_seen_at` on existing ones.
+- **Deduplication:** match on the bank's own ID for the offer: Sampath's record ID, or the slug of ComBank's offer URL. Both banks provide one, so no content hash is needed. Each hourly run inserts new offers and updates `last_seen_at` on existing ones.
 - **History:** when an offer disappears from the site, set `is_active = false` instead of deleting it. This builds up the dataset over time and makes "expired" filtering easy.
 
 ## Classification
@@ -87,7 +94,8 @@ The first version is rule-based. An LLM classifier can come later if the rules t
 - Run each bank as its own job, so one site failing doesn't block the other.
 - Retry with backoff (`tenacity`) and record every run in `scrape_runs`.
 - If a queue with retries is needed later, Celery beat + Redis can replace APScheduler without changing the scraper code.
-- Scrape politely: respect `robots.txt`, send a clear User-Agent, request each page at most once an hour, and set timeouts.
+- Scrape politely: respect `robots.txt` (checked once per site per run; a disallowed page makes the run `blocked`), send a clear User-Agent, pause between requests, request each page at most once an hour, and set timeouts.
+- Lock each bank while saving a scrape, so a manual scrape and the hourly one can't save the same new offer twice.
 
 ## API endpoints (v1)
 
@@ -142,10 +150,12 @@ The Next.js frontend (`frontend/`, SCRUM-11) already calls these endpoints, so t
 
 ## Libraries
 
-`fastapi`, `uvicorn`, `sqlalchemy` 2.x, `alembic`, `pydantic-settings`, `httpx`, `beautifulsoup4` + `lxml`, `apscheduler`, `tenacity`, `dateparser`, `pytest`. Optionally `playwright`, only if Sampath turns out to need a browser.
+`fastapi`, `uvicorn`, `sqlalchemy` 2.x, `alembic`, `pydantic-settings`, `psycopg`, `httpx`, `beautifulsoup4` + `lxml`, `apscheduler`, `tenacity`, `pytest`.
 
-## Open decisions
+`dateparser` turned out not to be needed. The banks use a small set of date formats that a regex handles, and Sampath supplies timestamps. Playwright was not added (see the note on bot protection above).
 
-- **Database:** Postgres is suggested, with SQLite as a stand-in for local development.
-- **Debit cards:** should debit-card offers be included, or only credit cards?
-- **Raw pages:** should the raw HTML/JSON from each run be kept, for debugging and re-parsing later?
+## Decisions
+
+- **Database:** Postgres in Docker Compose; SQLite for local development and tests.
+- **Debit cards:** included. `card_types` records the card networks and kinds an offer mentions (for example `["Visa", "Mastercard", "Credit", "Debit"]`), so the UI can filter on them later.
+- **Raw pages:** kept. Each run saves the HTML/JSON it fetched under `data/raw/<bank>/<timestamp>/`, keeping the newest 24 runs per bank. The path is stored in `scrape_runs.raw_path`.

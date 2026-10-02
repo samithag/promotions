@@ -58,7 +58,7 @@ export default async function PromotionPage({ params }: PageProps<"/promotions/[
             {formatValidity(promotion, now)}
           </p>
 
-          <p className="mt-8 max-w-[62ch] text-lg leading-relaxed">{promotion.description}</p>
+          <p className="mt-8 max-w-[62ch] whitespace-pre-line text-lg leading-relaxed">{promotion.description}</p>
 
           <dl className="mt-10 divide-y divide-line border-y border-line">
             {facts.map(({ term, detail }) => (

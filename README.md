@@ -1,81 +1,93 @@
 # Promotions
 
-A web application for browsing and managing a list of promotions: offers, discounts, and deals, all in one place.
-
-> **Status:** Early development. Sections marked _TBD_ will be completed once the related decisions are made.
+A web application for browsing credit card promotions from Sri Lankan banks. Offers are scraped every hour from Commercial Bank (ComBank) and Sampath Bank, sorted into categories, and shown on one site.
 
 ## Features
 
-Planned features for the promotion list web app:
-
-- **Promotion list:** browse all current promotions with title, description, discount, and validity dates
+- **Promotion list:** browse current promotions with merchant, discount, and validity dates
 - **Search and filter:** find promotions by keyword, bank, category, or status (active, upcoming, expired)
 - **Sorting:** sort by newest, ending soon, or discount value
-- **Promotion details:** view full terms and conditions for a single promotion
+- **Promotion details:** view the full terms and conditions for a single promotion
+- **Hourly scraping:** offers are collected from both banks every hour and kept as history when they end
 - **Manage promotions:** create, edit, and remove promotions (admin; not built yet)
 - **Responsive design:** works on desktop and mobile browsers
 
 ## Tech Stack
 
 - **Frontend:** Next.js 16 (App Router, React Server Components), TypeScript, and Tailwind CSS 4, in [`frontend/`](frontend/README.md).
-- **Backend:** FastAPI scraper and API, planned in [`doc/webscraper_plan.md`](doc/webscraper_plan.md).
+- **Backend:** Python 3.12, FastAPI, SQLAlchemy 2, Alembic, and an APScheduler scrape worker, in [`backend/`](backend/README.md). The design is in [`doc/webscraper_plan.md`](doc/webscraper_plan.md).
+- **Database:** PostgreSQL (SQLite for local development and tests).
+- **Deployment:** Docker Compose.
 
-_TBD: database and hosting._
+_TBD: hosting._
 
 ## Prerequisites
 
 - Git
-- Node.js 22 or later, with npm (frontend)
+- Docker, to run the whole stack
+- For local development without Docker:
+  - Node.js 22 or later, with npm (frontend)
+  - [uv](https://docs.astral.sh/uv/) (backend; it installs Python 3.12 for you)
 
 ## Getting Started
 
-### 1. Clone the repository
+### Run everything with Docker
 
 ```bash
 git clone https://github.com/samithag/promotions.git
 cd promotions
+docker compose up -d --build
 ```
 
-### 2. Install dependencies
+This starts four services:
+
+| Service | What it does | URL |
+|---|---|---|
+| `frontend` | The website | http://localhost:3000 |
+| `backend` | The REST API; runs database migrations on start | http://localhost:8000 (docs at `/docs`) |
+| `worker` | Scrapes both banks at startup, then every hour | none |
+| `db` | PostgreSQL | none |
+
+Optional settings go in a `.env` file at the repo root:
+
+- `ADMIN_TOKEN=...` enables `POST /api/v1/scrape-runs` for triggering a scrape by hand.
+- `PROMOTIONS_API_URL=` (set to empty) makes the frontend show its built-in sample data instead of calling the API.
+
+Stop the stack with `docker compose down`. Add `-v` to also delete the database.
+
+### Run without Docker
+
+Backend (uses a SQLite file by default):
+
+```bash
+cd backend
+uv sync
+uv run alembic upgrade head
+uv run fastapi dev app/main.py     # API on http://localhost:8000
+uv run python -m app.worker        # scrape worker, in a second terminal
+```
+
+Frontend:
 
 ```bash
 cd frontend
 npm install
+PROMOTIONS_API_URL=http://localhost:8000 npm run dev   # http://localhost:3000
 ```
 
-### 3. Configure the environment
-
-The frontend runs on built-in sample data by default. To use the live API, copy `frontend/.env.example` to `frontend/.env.local` and set `PROMOTIONS_API_URL`.
-
-### 4. Run the app locally
-
-```bash
-cd frontend
-npm run dev
-```
-
-Then open http://localhost:3000.
-
-### Run with Docker
-
-The frontend has a Dockerfile, and `compose.yaml` runs it locally:
-
-```bash
-docker compose up -d --build
-```
-
-Then open http://localhost:3000. To use the live API, set `PROMOTIONS_API_URL` in your shell or in a `.env` file at the repo root before running the command. Stop the app with `docker compose down`.
+Leave out `PROMOTIONS_API_URL` to run the frontend on sample data.
 
 ## Running Tests
 
 ```bash
-cd frontend
-npm test
+cd backend && uv run pytest     # parsers, extraction, ingest, worker, API
+cd frontend && npm test         # data layer and formatting
 ```
 
 ## Project Structure
 
 ```
+backend/      # FastAPI API, scrapers and worker (see backend/README.md)
 doc/          # Plans and design notes
 frontend/     # Next.js website (see frontend/README.md)
 compose.yaml  # Local Docker deployment

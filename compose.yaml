@@ -1,12 +1,67 @@
 # Local deployment. Run `docker compose up -d --build` from the repo root.
 services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: promotions
+      POSTGRES_PASSWORD: promotions
+      POSTGRES_DB: promotions
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U promotions"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    image: promotions-backend
+    environment: &backend-env
+      DATABASE_URL: postgresql+psycopg://promotions:promotions@db:5432/promotions
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+    ports:
+      - "8000:8000"
+    volumes:
+      - raw-pages:/app/data # manual scrapes (POST /api/v1/scrape-runs) save raw pages here too
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Scrapes every bank hourly. Waits for the backend so migrations have run.
+  worker:
+    image: promotions-backend
+    command: ["python", "-m", "app.worker"]
+    environment: *backend-env
+    volumes:
+      - raw-pages:/app/data
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
   frontend:
     build: ./frontend
     image: promotions-frontend
     ports:
       - "3000:3000"
     environment:
-      # Set to the FastAPI backend's URL once it exists (SCRUM-1);
-      # left empty, the site serves built-in sample data.
-      PROMOTIONS_API_URL: ${PROMOTIONS_API_URL:-}
+      # The site reads offers from the backend. Set PROMOTIONS_API_URL to an
+      # empty string to show the built-in sample data instead.
+      PROMOTIONS_API_URL: ${PROMOTIONS_API_URL-http://backend:8000}
+    depends_on:
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  db-data:
+  raw-pages:
