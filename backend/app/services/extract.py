@@ -2,6 +2,7 @@
 
 import html
 import re
+from calendar import monthrange
 from datetime import date, timedelta
 
 from app.models import DiscountType
@@ -33,9 +34,17 @@ _MONTH = "|".join(sorted(MONTHS, key=len, reverse=True))
 _FULL_DATE = re.compile(
     rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+(?:of\s+)?({_MONTH})\b\.?,?(?:\s+(\d{{4}}))?", re.I
 )
-# A bare ordinal day that borrows the month of the date after it: "01st to 31st October"
-_DAY_BEFORE_RANGE = re.compile(r"\b(\d{1,2})(?:st|nd|rd|th)\s+(?=(?:to|-|–|until|till)\s)", re.I)
+# A bare ordinal day that borrows the month of the date right after it:
+# "01st to 31st October". Not "20th to 30th of every month".
+_DAY_BEFORE_RANGE = re.compile(
+    rf"\b(\d{{1,2}})(?:st|nd|rd|th)\s+(?=(?:to|-|–|until|till)\s+\d{{1,2}}(?:st|nd|rd|th)?\s+"
+    rf"(?:of\s+)?(?:{_MONTH})\b)",
+    re.I,
+)
+# A month and year with no day, as an end date: "till December 2026".
+_MONTH_YEAR = re.compile(rf"\b({_MONTH})\s+(\d{{4}})\b", re.I)
 _STARTS = re.compile(r"\b(?:from|starting|commencing|effective)\s*$", re.I)
+_SINGLE_DAY = re.compile(r"\b(?:valid|only)\s+on\s*$", re.I)
 
 _INSTALLMENT = re.compile(
     r"\b0\s*%[^.]{0,60}?\b(?:install?ments?|instal?ments?|easy\s+payment|EPP|IPP)\b", re.I
@@ -87,34 +96,40 @@ def parse_validity(text: str, today: date) -> tuple[date | None, date | None]:
     """Reads an offer's validity window from text such as "Offer valid till 31st
     October 2026" or "from 01st to 31st October 2026". Returns (valid_from, valid_to).
     """
-    # (position, day, month, year), with month/year possibly missing for now.
-    parts: list[tuple[int, int, int | None, int | None]] = [
-        (m.start(), int(m[1]), MONTHS[m[2].lower()], int(m[3]) if m[3] else None)
-        for m in _FULL_DATE.finditer(text)
-    ]
-    parts += [(m.start(), int(m[1]), None, None) for m in _DAY_BEFORE_RANGE.finditer(text)]
+    # (position, day, month, year); a bare day's month and year come from the next date.
+    parts: list[tuple[int, int, int | None, int | None]] = []
+    full_dates = list(_FULL_DATE.finditer(text))
+    for m in full_dates:
+        parts.append((m.start(), int(m[1]), MONTHS[m[2].lower()], int(m[3]) if m[3] else None))
+    for m in _DAY_BEFORE_RANGE.finditer(text):
+        parts.append((m.start(), int(m[1]), None, None))
+    for m in _MONTH_YEAR.finditer(text):
+        if not any(d.start() <= m.start() < d.end() for d in full_dates):
+            month, year = MONTHS[m[1].lower()], int(m[2])
+            parts.append((m.start(), monthrange(year, month)[1], month, year))
     parts.sort()
 
-    # Fill a missing month or year from the date that follows ("01st to 31st October 2026").
-    dates: list[date] = []
+    dates: list[tuple[int, date]] = []
     month: int | None = None
     year: int | None = None
-    for _, day, part_month, part_year in reversed(parts):
+    for position, day, part_month, part_year in reversed(parts):
         month = part_month or month
         year = part_year or year
-        if month is None:
-            continue
-        resolved = _safe_date(year or _nearest_year(day, month, today), month, day)
-        if resolved:
-            dates.append(resolved)
+        if month and (resolved := _safe_date(year or _nearest_year(day, month, today), month, day)):
+            dates.append((position, resolved))
     dates.reverse()
 
     if not dates:
         return None, None
-    if len(dates) == 1:
-        starts = _STARTS.search(text[: parts[0][0]])
-        return (dates[0], None) if starts else (None, dates[0])
-    return dates[0], dates[-1]
+    if len(dates) > 1:
+        return dates[0][1], dates[-1][1]
+    position, only = dates[0]
+    before = text[:position]
+    if _SINGLE_DAY.search(before):
+        return only, only
+    if _STARTS.search(before):
+        return only, None
+    return None, only
 
 
 def parse_card_types(text: str) -> list[str]:

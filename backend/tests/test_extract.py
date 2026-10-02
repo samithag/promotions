@@ -39,6 +39,16 @@ def test_parse_discount(text: str, expected: tuple) -> None:
         ("Valid from 5th November 2026", (date(2026, 11, 5), None)),
         # No year: the nearest one is assumed, rolling into next year near January.
         ("Valid until 15 Jan", (None, date(2027, 1, 15))),
+        ("Offer valid on 29th October 2026", (date(2026, 10, 29), date(2026, 10, 29))),
+        ("Book before 15th November 2026", (None, date(2026, 11, 15))),
+        (
+            "Offer valid from 20th to 30th of every month till December 2026",
+            (None, date(2026, 12, 31)),
+        ),
+        (
+            "Offer valid from 24th to 11th of every month till 31st December 2026",
+            (None, date(2026, 12, 31)),
+        ),
         ("Valid for group of 2-20 adults", (None, None)),
     ],
 )
