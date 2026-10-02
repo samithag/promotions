@@ -54,6 +54,9 @@ coverage.xml
 *.sqlite3
 *.db
 
+# Raw pages saved by scrape runs
+backend/data/
+
 # ===========================
 # Node.js / Next.js
 # ===========================

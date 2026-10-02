@@ -1,5 +1,33 @@
 # Local deployment. Run `docker compose up -d --build` from the repo root.
 services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: promotions
+      POSTGRES_PASSWORD: promotions
+      POSTGRES_DB: promotions
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U promotions"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    image: promotions-backend
+    environment: &backend-env
+      DATABASE_URL: postgresql+psycopg://promotions:promotions@db:5432/promotions
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
   frontend:
     build: ./frontend
     image: promotions-frontend
@@ -10,3 +38,6 @@ services:
       # left empty, the site serves built-in sample data.
       PROMOTIONS_API_URL: ${PROMOTIONS_API_URL:-}
     restart: unless-stopped
+
+volumes:
+  db-data:
