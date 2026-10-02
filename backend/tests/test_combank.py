@@ -113,3 +113,28 @@ def test_scraper_treats_an_empty_listing_as_blocked() -> None:
     client = _client(lambda request: httpx.Response(200, text="<html><body>Busy</body></html>"))
     with pytest.raises(BlockedError):
         ComBankScraper(client).scrape()
+
+
+def test_scraper_obeys_robots_txt() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nDisallow: /rewards-promotions\n")
+        return httpx.Response(200, text=LISTING)
+
+    with pytest.raises(BlockedError, match="robots.txt disallows"):
+        ComBankScraper(_client(handler)).scrape()
+
+
+def test_scraper_fetches_robots_txt_once_per_site() -> None:
+    robots_requests: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            robots_requests.append(str(request.url))
+            return httpx.Response(200, text="User-agent: *\nAllow: /\n")
+        if str(request.url) == LISTING_URL:
+            return httpx.Response(200, text=LISTING)
+        return httpx.Response(404)
+
+    assert len(ComBankScraper(_client(handler)).scrape().offers) == 42
+    assert robots_requests == ["https://www.combank.lk/robots.txt"]

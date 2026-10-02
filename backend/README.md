@@ -52,7 +52,9 @@ Response shapes follow the "Frontend contract" in the plan, which the website re
    - Offers are matched to stored ones by the bank's own ID. Offers that disappear are marked inactive, not deleted.
 3. **Log the run** (`app/services/scrape.py`):
    - Every run is recorded in `scrape_runs`, and its raw responses are saved for debugging.
-   - Network errors and 5xx responses are retried 3 times with backoff.
+   - Network errors, 429 and 5xx responses are retried 3 times with backoff.
+   - Saving is locked per bank (a Postgres advisory lock), so a manual scrape and the hourly one can't collide.
+   - When the worker starts, runs left `running` by a stopped process are marked `failed`.
 
 ### Blocked runs
 
@@ -63,7 +65,7 @@ Both banks use bot protection. When a site answers but withholds its offers, the
 
 A blocked run doesn't change stored offers. Without this rule, one blocked run would mark every offer as ended. Check `GET /api/v1/scrape-runs` to see whether scraping is healthy.
 
-The scrapers send a clear User-Agent and pause between requests. They do not try to get around bot protection.
+The scrapers check `robots.txt`, send a clear User-Agent, and pause between requests. A page disallowed by `robots.txt` also makes the run `blocked`. The scrapers do not try to get around bot protection.
 
 ## Tests
 

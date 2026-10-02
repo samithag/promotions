@@ -13,7 +13,7 @@ from app.core.config import LOCAL_TZ, get_settings
 from app.db import get_sessionmaker
 from app.scrapers.registry import SCRAPERS
 from app.services.banks import sync_banks
-from app.services.scrape import run_scrape
+from app.services.scrape import fail_interrupted_runs, run_scrape
 
 
 def main() -> None:
@@ -24,6 +24,7 @@ def main() -> None:
     session_factory = get_sessionmaker()
     with session_factory() as session:
         sync_banks(session)
+        fail_interrupted_runs(session)
 
     scheduler = BlockingScheduler(timezone=LOCAL_TZ)
     for code in SCRAPERS:

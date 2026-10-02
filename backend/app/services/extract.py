@@ -50,7 +50,7 @@ _INSTALLMENT = re.compile(
     r"\b0\s*%[^.]{0,60}?\b(?:install?ments?|instal?ments?|easy\s+payment|EPP|IPP)\b", re.I
 )
 _MONTHS_COUNT = re.compile(r"\b(\d{1,2})\s*months?\b", re.I)
-_PERCENT = re.compile(r"(\d{1,2}(?:\.\d+)?)\s*%")
+_PERCENT = re.compile(r"(?<![\d.])(\d{1,3}(?:\.\d+)?)\s*%")
 _RUPEES = re.compile(r"\b(?:Rs\.?|LKR)\s*([\d,]+(?:\.\d+)?)", re.I)
 
 _BRANDS = {
@@ -115,7 +115,15 @@ def parse_validity(text: str, today: date) -> tuple[date | None, date | None]:
     for position, day, part_month, part_year in reversed(parts):
         month = part_month or month
         year = part_year or year
-        if month and (resolved := _safe_date(year or _nearest_year(day, month, today), month, day)):
+        if not month:
+            continue
+        resolved = _safe_date(year or _nearest_year(day, month, today), month, day)
+        # A borrowed year can put the start after the end: "1 December to 15 January
+        # 2027" starts in December 2026.
+        if resolved and part_year is None and dates and resolved > dates[-1][1]:
+            resolved = _safe_date(resolved.year - 1, month, day)
+            year = resolved.year if resolved else year
+        if resolved:
             dates.append((position, resolved))
     dates.reverse()
 

@@ -29,14 +29,8 @@ SessionDep = Annotated[Session, Depends(get_session)]
 CategorySlug = Annotated[str | None, Query(pattern=f"^({'|'.join(CATEGORIES)})$")]
 
 
-def _columns(row: Promotion | ScrapeRun) -> dict:
-    return {column.key: getattr(row, column.key) for column in row.__table__.columns}
-
-
-def promotion_out(promotion: Promotion) -> PromotionOut:
-    return PromotionOut.model_validate(
-        {**_columns(promotion), "id": str(promotion.id), "bank": promotion.bank.code}
-    )
+# Largest id Postgres' INTEGER holds; anything else can't be a promotion.
+_MAX_ID = 2**31 - 1
 
 
 @router.get("/promotions", response_model=PromotionPage, tags=["promotions"])
@@ -47,7 +41,7 @@ def get_promotions(
     category: CategorySlug = None,
     status: PromotionStatus | None = None,
     sort: SortOrder = "newest",
-    page: Annotated[int, Query(ge=1)] = 1,
+    page: Annotated[int, Query(ge=1, le=10_000)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 12,
 ) -> PromotionPage:
     """Promotions, filtered and sorted. Leaving out `status` returns every status."""
@@ -63,16 +57,21 @@ def get_promotions(
         page_size=page_size,
     )
     return PromotionPage(
-        items=[promotion_out(p) for p in items], total=total, page=page, page_size=page_size
+        items=[PromotionOut.model_validate(p) for p in items],
+        total=total,
+        page=page,
+        page_size=page_size,
     )
 
 
 @router.get("/promotions/{promotion_id}", response_model=PromotionOut, tags=["promotions"])
-def get_promotion(promotion_id: int, session: SessionDep) -> PromotionOut:
-    promotion = session.get(Promotion, promotion_id)
+def get_promotion(promotion_id: str, session: SessionDep) -> PromotionOut:
+    # Any malformed id is simply "not found", which is what the website handles.
+    valid = promotion_id.isdigit() and int(promotion_id) <= _MAX_ID
+    promotion = session.get(Promotion, int(promotion_id)) if valid else None
     if promotion is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Promotion not found")
-    return promotion_out(promotion)
+    return PromotionOut.model_validate(promotion)
 
 
 @router.get("/categories", response_model=list[CategoryCount], tags=["promotions"])
@@ -95,7 +94,7 @@ def get_scrape_runs(
 ) -> list[ScrapeRunOut]:
     """Recent scrape runs, newest first: shows whether scraping is healthy."""
     runs = session.scalars(select(ScrapeRun).order_by(ScrapeRun.id.desc()).limit(limit))
-    return [ScrapeRunOut.model_validate({**_columns(run), "bank": run.bank.code}) for run in runs]
+    return [ScrapeRunOut.model_validate(run) for run in runs]
 
 
 def require_admin(

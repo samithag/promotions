@@ -7,10 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import Settings
-from app.models import Promotion, RunStatus
+from app.models import Bank, Promotion, RunStatus, ScrapeRun
 from app.scrapers.combank import LISTING_URL
 from app.services.banks import sync_banks
-from app.services.scrape import ATTEMPTS, run_scrape, save_raw
+from app.services.scrape import ATTEMPTS, fail_interrupted_runs, run_scrape, save_raw
 from tests.conftest import FIXTURES
 
 LISTING = (FIXTURES / "combank_rewards_promotions.html").read_text(encoding="utf-8")
@@ -30,9 +30,11 @@ def factory(session_factory: sessionmaker[Session]) -> sessionmaker[Session]:
 
 def client(listing: httpx.Response, calls: list[str] | None = None) -> httpx.Client:
     def handler(request: httpx.Request) -> httpx.Response:
+        if str(request.url) != LISTING_URL:
+            return httpx.Response(404)  # robots.txt and detail pages
         if calls is not None:
             calls.append(str(request.url))
-        return listing if str(request.url) == LISTING_URL else httpx.Response(404)
+        return listing
 
     return httpx.Client(transport=httpx.MockTransport(handler))
 
@@ -86,3 +88,26 @@ def test_save_raw_keeps_only_the_newest_runs(tmp_path: Path) -> None:
 
     kept = sorted(p.name for p in (tmp_path / "combank").iterdir())
     assert kept == ["20261002T020000Z", "20261002T030000Z", "20261002T040000Z"]
+
+
+def test_database_errors_are_recorded_on_the_run(factory, settings, monkeypatch) -> None:
+    def broken_ingest(session, bank, offers, now):
+        # Missing required columns: fails when flushed, like a constraint violation.
+        session.add(Promotion(bank_id=bank.id))
+
+    monkeypatch.setattr("app.services.scrape.ingest", broken_ingest)
+    run = run_scrape("combank", factory, settings, client(httpx.Response(200, text=LISTING)))
+
+    assert run.status == RunStatus.FAILED
+    assert "IntegrityError" in run.error
+    assert run.finished_at is not None
+
+
+def test_fail_interrupted_runs(factory) -> None:
+    with factory() as session:
+        bank_id = session.scalars(select(Bank.id)).first()
+        session.add_all([ScrapeRun(bank_id=bank_id), ScrapeRun(bank_id=bank_id, status="success")])
+        session.commit()
+        assert fail_interrupted_runs(session) == 1
+        statuses = sorted(r.status for r in session.scalars(select(ScrapeRun)))
+    assert statuses == ["failed", "success"]

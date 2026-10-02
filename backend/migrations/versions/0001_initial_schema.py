@@ -31,7 +31,6 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("bank_id", sa.Integer(), nullable=False),
         sa.Column("external_id", sa.String(length=255), nullable=False),
-        sa.Column("content_hash", sa.String(length=64), nullable=False),
         sa.Column("title", sa.String(length=512), nullable=False),
         sa.Column("merchant", sa.String(length=255), nullable=False),
         sa.Column("description", sa.Text(), nullable=False),

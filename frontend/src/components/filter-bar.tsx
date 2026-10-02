@@ -3,7 +3,7 @@
 import { Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { ALL_STATUSES, toSearchString } from "@/lib/promotions/query";
+import { ALL_STATUSES, MAX_SEARCH_LENGTH, toSearchString } from "@/lib/promotions/query";
 import {
   BANKS,
   SORTS,
@@ -77,6 +77,7 @@ export function FilterBar({ query, categories }: FilterBarProps) {
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
           <input
             type="search"
+            maxLength={MAX_SEARCH_LENGTH}
             value={text}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search merchants or offers"

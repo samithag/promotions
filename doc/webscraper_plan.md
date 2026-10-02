@@ -73,10 +73,10 @@ Adding a bank later means one new file under `scrapers/` plus one line in the re
 | Table | Key fields |
 |---|---|
 | `banks` | id, code (`combank`), name, source_url |
-| `promotions` | id, bank_id, external_id / `content_hash`, title, merchant, description, discount_value, discount_type (% / fixed / installment), card_types, category, bank_category (as the bank labels it), valid_from, valid_to, image_url, source_url, first_seen_at, last_seen_at, is_active |
-| `scrape_runs` | id, bank_id, started_at, finished_at, status, offers_found, offers_new, error |
+| `promotions` | id, bank_id, external_id, title, merchant, description, discount_value, discount_type (% / fixed / installment), card_types, category, bank_category (as the bank labels it), valid_from, valid_to, image_url, source_url, first_seen_at, last_seen_at, is_active |
+| `scrape_runs` | id, bank_id, started_at, finished_at, status (running / success / blocked / failed), offers_found, offers_new, offers_closed, error, raw_path |
 
-- **Deduplication:** use the bank's own ID when there is one. Otherwise use a hash of bank + title + merchant + validity dates. Each hourly run inserts new offers and updates `last_seen_at` on existing ones.
+- **Deduplication:** match on the bank's own ID for the offer: Sampath's record ID, or the slug of ComBank's offer URL. Both banks provide one, so no content hash is needed. Each hourly run inserts new offers and updates `last_seen_at` on existing ones.
 - **History:** when an offer disappears from the site, set `is_active = false` instead of deleting it. This builds up the dataset over time and makes "expired" filtering easy.
 
 ## Classification
@@ -94,7 +94,8 @@ The first version is rule-based. An LLM classifier can come later if the rules t
 - Run each bank as its own job, so one site failing doesn't block the other.
 - Retry with backoff (`tenacity`) and record every run in `scrape_runs`.
 - If a queue with retries is needed later, Celery beat + Redis can replace APScheduler without changing the scraper code.
-- Scrape politely: respect `robots.txt`, send a clear User-Agent, request each page at most once an hour, and set timeouts.
+- Scrape politely: respect `robots.txt` (checked once per site per run; a disallowed page makes the run `blocked`), send a clear User-Agent, pause between requests, request each page at most once an hour, and set timeouts.
+- Lock each bank while saving a scrape, so a manual scrape and the hourly one can't save the same new offer twice.
 
 ## API endpoints (v1)
 

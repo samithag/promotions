@@ -18,6 +18,8 @@ TODAY = date(2026, 10, 2)
         ("LKR 500 cashback", (DiscountType.FIXED, 500)),
         ("0% interest installment plans for up to 24 months", (DiscountType.INSTALLMENT, 24)),
         ("0% Easy Payment Plan", (DiscountType.INSTALLMENT, None)),
+        ("100% cashback on your first order", (DiscountType.PERCENTAGE, 100)),
+        ("Pay with 0.5% fee, get 12.5% off", (DiscountType.PERCENTAGE, 12.5)),
         ("Buy one get one free", (None, None)),
     ],
 )
@@ -49,6 +51,7 @@ def test_parse_discount(text: str, expected: tuple) -> None:
             "Offer valid from 24th to 11th of every month till 31st December 2026",
             (None, date(2026, 12, 31)),
         ),
+        ("Valid from 1 December to 15 January 2027", (date(2026, 12, 1), date(2027, 1, 15))),
         ("Valid for group of 2-20 adults", (None, None)),
     ],
 )

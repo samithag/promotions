@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PAGE_SIZE, parsePromotionQuery, toSearchString } from "./query";
+import { MAX_SEARCH_LENGTH, PAGE_SIZE, parsePromotionQuery, toSearchString } from "./query";
 
 describe("parsePromotionQuery", () => {
   it("applies defaults for an empty URL", () => {
@@ -54,6 +54,10 @@ describe("parsePromotionQuery", () => {
       sort: "newest",
       page: 1,
     });
+  });
+
+  it("trims searches to the length the API accepts", () => {
+    expect(parsePromotionQuery({ q: "a".repeat(150) }).q).toHaveLength(MAX_SEARCH_LENGTH);
   });
 
   it("uses the first value of repeated params", () => {

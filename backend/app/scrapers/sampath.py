@@ -5,7 +5,6 @@
 """
 
 import html
-import time
 from datetime import date, datetime
 from typing import Any
 
@@ -20,7 +19,7 @@ MAX_PAGES = 25  # per category; a safety stop if `total` is ever wrong
 
 # The site's category tabs (value -> label). Merchant-specific ones come first so an
 # offer listed under several tabs keeps its most specific category.
-CATEGORIES: dict[str, str] = {
+SITE_TABS: dict[str, str] = {
     "hotels": "Hotels",
     "super_markets": "SuperMarkets",
     "online": "Online",
@@ -66,7 +65,7 @@ def parse_offer(record: dict[str, Any], today: date) -> RawOffer:
         source_url=OFFER_URL.format(id=record["id"]),
         description=description,
         discount_text=short_discount,
-        bank_category=CATEGORIES.get(record.get("category") or "", record.get("category")),
+        bank_category=SITE_TABS.get(record.get("category") or "", record.get("category")),
         card_types=parse_card_types(eligible),
         valid_from=valid_from,
         valid_to=valid_to,
@@ -83,10 +82,10 @@ class SampathScraper(BaseScraper):
         today = local_today()
         offers: dict[str, RawOffer] = {}
         raw: dict[str, str] = {}
-        for category in CATEGORIES:
+        for category in SITE_TABS:
             for record in self._fetch_category(category, raw):
                 offer = parse_offer(record, today)
-                offers.setdefault(offer.external_id or "", offer)
+                offers.setdefault(offer.external_id, offer)
         if not offers:
             raise BlockedError("Sampath returned no offers in any category")
         return ScrapeResult(offers=list(offers.values()), raw=raw)
@@ -94,11 +93,7 @@ class SampathScraper(BaseScraper):
     def _fetch_category(self, category: str, raw: dict[str, str]) -> list[dict[str, Any]]:
         records: list[dict[str, Any]] = []
         for page in range(1, MAX_PAGES + 1):
-            time.sleep(self.delay_seconds)
-            response = self.client.get(
-                API_URL, params={"category": category, "page_number": page, "size": PAGE_SIZE}
-            )
-            response.raise_for_status()
+            response = self._get(API_URL, category=category, page_number=page, size=PAGE_SIZE)
             raw[f"{category}-{page}.json"] = response.text
             body = response.json()
             data, total = body.get("data") or [], int(body.get("total") or 0)

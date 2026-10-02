@@ -1,6 +1,5 @@
-"""Turns scraped offers into stored promotions: normalise, dedupe, upsert, close."""
+"""Turns scraped offers into stored promotions: classify, dedupe, upsert, close."""
 
-import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -20,14 +19,6 @@ class IngestStats:
     closed: int
 
 
-def content_hash(bank: Bank, offer: RawOffer) -> str:
-    """Identifies an offer by what it says, for banks that don't give offers an ID."""
-    key = "|".join(
-        [bank.code, offer.title, offer.merchant, str(offer.valid_from), str(offer.valid_to)]
-    )
-    return hashlib.sha256(key.lower().encode()).hexdigest()
-
-
 def ingest(session: Session, bank: Bank, offers: list[RawOffer], now: datetime) -> IngestStats:
     """Upserts one complete scrape of a bank's offers.
 
@@ -43,18 +34,16 @@ def ingest(session: Session, bank: Bank, offers: list[RawOffer], now: datetime) 
     new = 0
 
     for offer in offers:
-        digest = content_hash(bank, offer)
-        external_id = offer.external_id or digest
-        if external_id in seen:
+        if offer.external_id in seen:
             continue
-        seen.add(external_id)
+        seen.add(offer.external_id)
 
-        promotion = stored.get(external_id)
+        promotion = stored.get(offer.external_id)
         if promotion is None:
-            promotion = Promotion(bank_id=bank.id, external_id=external_id, first_seen_at=now)
+            promotion = Promotion(bank_id=bank.id, external_id=offer.external_id, first_seen_at=now)
             session.add(promotion)
             new += 1
-        _apply(promotion, offer, digest)
+        _apply(promotion, offer)
         promotion.last_seen_at = now
         promotion.is_active = True
 
@@ -67,9 +56,8 @@ def ingest(session: Session, bank: Bank, offers: list[RawOffer], now: datetime) 
     return IngestStats(found=len(seen), new=new, closed=closed)
 
 
-def _apply(promotion: Promotion, offer: RawOffer, digest: str) -> None:
+def _apply(promotion: Promotion, offer: RawOffer) -> None:
     discount_type, discount_value = parse_discount(offer.discount_text or offer.title)
-    promotion.content_hash = digest
     promotion.title = offer.title
     promotion.merchant = offer.merchant
     promotion.description = offer.description

@@ -11,6 +11,8 @@ import {
 } from "./types";
 
 export const PAGE_SIZE = 12;
+/** The API rejects longer searches. */
+export const MAX_SEARCH_LENGTH = 100;
 
 /** Status shown when the URL doesn't name one. */
 export const DEFAULT_STATUS: PromotionStatus = "active";
@@ -36,7 +38,7 @@ function oneOf<T extends string>(
  * fall back to defaults rather than erroring, so hand-edited URLs still work.
  */
 export function parsePromotionQuery(params: RawSearchParams): PromotionQuery {
-  const q = first(params.q)?.trim();
+  const q = first(params.q)?.trim().slice(0, MAX_SEARCH_LENGTH).trim();
   const rawStatus = first(params.status);
   const page = Number.parseInt(first(params.page) ?? "", 10);
 

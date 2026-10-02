@@ -28,7 +28,6 @@ BANK_CATEGORIES: dict[str, str] = {
     "leisure": "hotels",
     # Sampath
     "dining": "dining",
-    "super-markets": "supermarket",
     "supermarkets": "supermarket",
     "online": "online",
     "health-and-insurance": "health",
@@ -36,7 +35,6 @@ BANK_CATEGORIES: dict[str, str] = {
     "hotels": "hotels",
     "fashion": "fashion",
     "electronics-furniture": "electronics",
-    "electronics-and-furniture": "electronics",
 }
 
 # Regex alternatives per category, checked in order: the more specific rules come

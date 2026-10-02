@@ -11,7 +11,7 @@ from app.services.ingest import ingest
 NOW = datetime(2026, 10, 2, 6, 0, tzinfo=UTC)
 
 
-def offer(external_id: str | None = "a", **overrides) -> RawOffer:
+def offer(external_id: str = "a", **overrides) -> RawOffer:
     values = {
         "external_id": external_id,
         "title": "Enjoy 20% off at Keells",
@@ -71,8 +71,15 @@ def test_closes_offers_that_disappear_and_reopens_them_if_they_return(session: S
     assert promotions(session)["b"].is_active
 
 
-def test_falls_back_to_a_content_hash_and_dedupes_within_a_scrape(session: Session) -> None:
-    stats = ingest(session, bank(session), [offer(None), offer(None)], NOW)
+def test_dedupes_repeated_offers_within_a_scrape(session: Session) -> None:
+    stats = ingest(session, bank(session), [offer("a"), offer("a", title="Again")], NOW)
     assert (stats.found, stats.new) == (1, 1)
-    (stored,) = promotions(session).values()
-    assert stored.external_id == stored.content_hash
+    assert promotions(session)["a"].title == "Enjoy 20% off at Keells"
+
+
+def test_reads_the_discount_from_the_title_when_there_is_no_discount_text(
+    session: Session,
+) -> None:
+    ingest(session, bank(session), [offer(discount_text="", title="Rs. 1,000 off at Keells")], NOW)
+    stored = promotions(session)["a"]
+    assert (stored.discount_type, stored.discount_value) == (DiscountType.FIXED, 1000)

@@ -60,6 +60,8 @@ def _api(responses: dict[str, dict]) -> httpx.Client:
     """Serves `responses[f"{category}-{page}"]`, and empty pages for anything else."""
 
     def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
         key = f"{request.url.params['category']}-{request.url.params['page_number']}"
         body = responses.get(key, {"data": [], "page_number": 1, "size": 8, "total": 0})
         return httpx.Response(200, json=body)

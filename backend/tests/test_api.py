@@ -49,7 +49,6 @@ def seeded(client: TestClient, session_factory: sessionmaker[Session]) -> dict[s
             promotion = Promotion(
                 bank_id=banks[row["bank"]],
                 external_id=name,
-                content_hash=name,
                 title=f"Offer at {row['merchant']}",
                 merchant=row["merchant"],
                 description=f"Terms for {row['merchant']}",
@@ -137,7 +136,8 @@ def test_get_promotion(client: TestClient, seeded) -> None:
     response = client.get(f"/api/v1/promotions/{seeded['singer']}")
     assert response.status_code == 200
     assert response.json()["merchant"] == "Singer"
-    assert client.get("/api/v1/promotions/999999").status_code == 404
+    for missing in ["999999", "abc", "-1", "99999999999999"]:
+        assert client.get(f"/api/v1/promotions/{missing}").status_code == 404
 
 
 def test_categories_count_every_category(client: TestClient, seeded) -> None:

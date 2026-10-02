@@ -8,8 +8,8 @@ from app.services.classifier import classify
     [
         # The bank's own label wins when it is specific.
         ("Food & Restaurants", "Courtyard by Marriott Colombo", "dining"),
-        ("super_markets", "Keells", "supermarket"),
-        ("Electronics_and_Furniture", "Damro", "electronics"),
+        ("SuperMarkets", "Keells", "supermarket"),
+        ("Electronics & Furniture", "Damro", "electronics"),
         ("Leisure", "Relax at Hunas Falls", "hotels"),
         ("dining", "Hilton Colombo - Oktoberfest 2026", "dining"),
         # Generic labels fall back to keywords in the title and merchant.

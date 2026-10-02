@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session, sessionmaker
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
@@ -58,7 +58,9 @@ def run_scrape(
             run.raw_path = save_raw(
                 settings.raw_dir, code, run.started_at, result.raw, keep=settings.raw_keep_per_bank
             )
+            _lock_bank(session, bank.id)
             stats = ingest(session, bank, result.offers, utcnow())
+            session.flush()  # surface database errors here, where they are recorded
             run.status = RunStatus.SUCCESS
             run.offers_found = stats.found
             run.offers_new = stats.new
@@ -83,6 +85,26 @@ def run_scrape(
             run.offers_closed,
         )
         return run
+
+
+def _lock_bank(session: Session, bank_id: int) -> None:
+    """Serialises ingest per bank, so a manual scrape and the hourly one can't both
+    insert the same new offer. Held until the transaction ends. A no-op on SQLite,
+    which only allows one writer anyway.
+    """
+    if session.get_bind().dialect.name == "postgresql":
+        session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": bank_id})
+
+
+def fail_interrupted_runs(session: Session) -> int:
+    """Marks runs left "running" by a stopped process as failed. Call at worker startup."""
+    runs = session.scalars(select(ScrapeRun).where(ScrapeRun.status == RunStatus.RUNNING)).all()
+    for run in runs:
+        run.status = RunStatus.FAILED
+        run.error = "Interrupted: the process running this scrape stopped"
+        run.finished_at = utcnow()
+    session.commit()
+    return len(runs)
 
 
 def _fetch(code: str, settings: Settings, client: httpx.Client | None) -> ScrapeResult:

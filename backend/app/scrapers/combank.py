@@ -5,7 +5,6 @@ validity line). Each card links to a detail page with the full terms.
 """
 
 import re
-import time
 from dataclasses import replace
 from datetime import date
 
@@ -82,8 +81,7 @@ class ComBankScraper(BaseScraper):
 
     def scrape(self) -> ScrapeResult:
         today = local_today()
-        response = self.client.get(LISTING_URL)
-        response.raise_for_status()
+        response = self._get(LISTING_URL)
         offers = parse_listing(response.text, today)
         if not offers:
             raise BlockedError("No offers found on the ComBank listing page")
@@ -94,10 +92,8 @@ class ComBankScraper(BaseScraper):
 
     def _with_details(self, offer: RawOffer, today: date) -> RawOffer:
         """Adds the detail page's terms; keeps the listing data if that page fails."""
-        time.sleep(self.delay_seconds)
         try:
-            response = self.client.get(offer.source_url)
-            response.raise_for_status()
+            response = self._get(offer.source_url)
         except httpx.HTTPError:
             return offer
         description = parse_detail(response.text)

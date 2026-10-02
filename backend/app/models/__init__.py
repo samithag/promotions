@@ -40,9 +40,8 @@ class Promotion(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     bank_id: Mapped[int] = mapped_column(ForeignKey("banks.id"), index=True)
-    # The bank's own ID for the offer, or a content hash when it has none.
+    # The bank's own ID for the offer; with bank_id it identifies the offer across scrapes.
     external_id: Mapped[str] = mapped_column(String(255))
-    content_hash: Mapped[str] = mapped_column(String(64))
 
     title: Mapped[str] = mapped_column(String(512))
     merchant: Mapped[str] = mapped_column(String(255))
