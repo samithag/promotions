@@ -1,0 +1,12 @@
+# Local deployment. Run `docker compose up -d --build` from the repo root.
+services:
+  frontend:
+    build: ./frontend
+    image: promotions-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      # Set to the FastAPI backend's URL once it exists (SCRUM-1);
+      # left empty, the site serves built-in sample data.
+      PROMOTIONS_API_URL: ${PROMOTIONS_API_URL:-}
+    restart: unless-stopped
