@@ -56,6 +56,16 @@ npm run dev
 
 Then open http://localhost:3000.
 
+### Run with Docker
+
+The frontend has a Dockerfile, and `compose.yaml` runs it locally:
+
+```bash
+docker compose up -d --build
+```
+
+Then open http://localhost:3000. To use the live API, set `PROMOTIONS_API_URL` in your shell or in a `.env` file at the repo root before running the command. Stop the app with `docker compose down`.
+
 ## Running Tests
 
 ```bash
@@ -66,8 +76,9 @@ npm test
 ## Project Structure
 
 ```
-doc/        # Plans and design notes
-frontend/   # Next.js website (see frontend/README.md)
+doc/          # Plans and design notes
+frontend/     # Next.js website (see frontend/README.md)
+compose.yaml  # Local Docker deployment
 ```
 
 ## Contributing

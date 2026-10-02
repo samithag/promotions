@@ -15,6 +15,24 @@ Run these from `frontend/`. Node.js 22 or later is required.
 | `npm run typecheck` | Type-check with TypeScript |
 | `npm run build` / `npm start` | Build and serve the production site |
 
+## Docker
+
+The `Dockerfile` builds Next.js in standalone mode (`output: "standalone"`) and runs the minimal server as a non-root user on port 3000. From the repo root:
+
+```bash
+docker compose up -d --build   # build and start
+docker compose down            # stop
+```
+
+To build and run it on its own:
+
+```bash
+docker build -t promotions-frontend .
+docker run -p 3000:3000 -e PROMOTIONS_API_URL=http://host.docker.internal:8000 promotions-frontend
+```
+
+`PROMOTIONS_API_URL` is read when the server handles each request, not at build time, so one image works for every environment.
+
 ## Data source
 
 The site reads promotions through a `PromotionsRepository` (`src/lib/promotions/`):
